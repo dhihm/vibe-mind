@@ -66,6 +66,10 @@ codex login
 
 ## Run
 
+Detailed setup and run instructions:
+
+- [docs/run.md](./docs/run.md)
+
 ```bash
 npm install
 npm run dev
