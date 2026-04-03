@@ -149,6 +149,46 @@ function clipText(text: string, maxLength: number) {
   return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}…`
 }
 
+function titleFromFilename(filename: string) {
+  return (
+    filename
+      .replace(/\.[^.]+$/u, '')
+      .replace(/[-_]+/g, ' ')
+      .trim() || 'Imported markdown'
+  )
+}
+
+function looksLikeWorkspaceMarkdown(markdown: string) {
+  return (
+    markdown.includes('```vibemind-graph') ||
+    markdown.includes('```vibemind-node-meta')
+  )
+}
+
+function importMarkdownAsWorkspace(markdown: string, filename: string): WorkspaceDocument {
+  const normalized = markdown.replace(/\r\n?/g, '\n').trim()
+  const headingMatch = normalized.match(/^#\s+(.+)$/m)
+  const title = headingMatch?.[1].trim() || titleFromFilename(filename)
+  const bodyWithoutHeading = headingMatch
+    ? normalized
+        .slice(normalized.indexOf(headingMatch[0]) + headingMatch[0].length)
+        .trim()
+    : normalized
+  const body = bodyWithoutHeading || normalized || 'Imported from a Markdown file.'
+  const node = createWorkspaceNode('concept', { x: 80, y: 120 })
+
+  node.data.title = title
+  node.data.body = body
+
+  return {
+    title,
+    description: `Imported from ${filename || 'a Markdown file'}.`,
+    nodes: [node],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 0.8 },
+  }
+}
+
 function parseGeneratedNodeAnswer(rawAnswer: string) {
   const normalized = rawAnswer.trim()
   const match = normalized.match(/^TITLE:\s*(.+?)\nBODY:\s*\n?([\s\S]+)$/i)
@@ -341,6 +381,10 @@ function AppShell() {
   })
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [lastGeneration, setLastGeneration] = useState<string | null>(null)
+  const [workspaceMessage, setWorkspaceMessage] = useState<{
+    kind: 'error' | 'success'
+    text: string
+  } | null>(null)
   const activeProviderStatus = activeProvider === 'claude' ? claudeStatus : codexStatus
   const effectiveModel = model.trim() || activeProviderStatus?.defaultModel || ''
 
@@ -1221,12 +1265,32 @@ function AppShell() {
   }
 
   async function importWorkspace(file: File) {
-    const text = await file.text()
-    const doc = deserializeWorkspace(text)
-    startTransition(() => {
-      applyWorkspace(doc)
-      saveToBrowser(doc.viewport)
-    })
+    try {
+      const text = await file.text()
+      const doc = looksLikeWorkspaceMarkdown(text)
+        ? deserializeWorkspace(text)
+        : importMarkdownAsWorkspace(text, file.name)
+
+      startTransition(() => {
+        applyWorkspace(doc)
+        saveToBrowser(doc.viewport)
+      })
+
+      setWorkspaceMessage({
+        kind: 'success',
+        text: looksLikeWorkspaceMarkdown(text)
+          ? `Opened workspace from ${file.name}.`
+          : `Imported ${file.name} as a single Markdown node.`,
+      })
+    } catch (error) {
+      setWorkspaceMessage({
+        kind: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : `Could not open ${file.name}.`,
+      })
+    }
   }
 
   function resetWorkspace() {
@@ -1301,6 +1365,18 @@ function AppShell() {
           />
         </label>
       </div>
+
+      {workspaceMessage ? (
+        <div
+          className={`workspace-banner ${
+            workspaceMessage.kind === 'error'
+              ? 'workspace-banner--error'
+              : 'workspace-banner--success'
+          }`}
+        >
+          {workspaceMessage.text}
+        </div>
+      ) : null}
 
       <main
         className={`layout ${isResizing ? 'layout--resizing' : ''}`}

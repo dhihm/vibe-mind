@@ -367,8 +367,9 @@ export function serializeWorkspace(doc: WorkspaceDocument): string {
 }
 
 export function deserializeWorkspace(markdown: string): WorkspaceDocument {
-  const titleMatch = markdown.match(/^#\s+(.+)$/m)
-  const graphMatch = markdown.match(/```vibemind-graph\n([\s\S]*?)\n```/)
+  const normalizedMarkdown = markdown.replace(/\r\n?/g, '\n')
+  const titleMatch = normalizedMarkdown.match(/^#\s+(.+)$/m)
+  const graphMatch = normalizedMarkdown.match(/```vibemind-graph\n([\s\S]*?)\n```/)
 
   if (!titleMatch || !graphMatch) {
     throw new Error('Invalid Vibe Mind workspace file.')
@@ -377,8 +378,11 @@ export function deserializeWorkspace(markdown: string): WorkspaceDocument {
   const title = titleMatch[1].trim()
   const titleLine = titleMatch[0]
   const graphBlock = graphMatch[0]
-  const description = markdown
-    .slice(markdown.indexOf(titleLine) + titleLine.length, markdown.indexOf(graphBlock))
+  const description = normalizedMarkdown
+    .slice(
+      normalizedMarkdown.indexOf(titleLine) + titleLine.length,
+      normalizedMarkdown.indexOf(graphBlock),
+    )
     .trim()
   const graph = JSON.parse(graphMatch[1]) as GraphEnvelope
 
@@ -386,7 +390,7 @@ export function deserializeWorkspace(markdown: string): WorkspaceDocument {
     /## Node: ([^\n]+)\n```vibemind-node-meta\n([\s\S]*?)\n```\n([\s\S]*?)(?=\n(?:---\n\n)?## Node: |\n*$)/g
   const nodesById = new Map<string, WorkspaceNode>()
 
-  for (const match of markdown.matchAll(nodeSectionRegex)) {
+  for (const match of normalizedMarkdown.matchAll(nodeSectionRegex)) {
     const [, id, metadataJson, body] = match
     const metadata = JSON.parse(metadataJson) as {
       title: string

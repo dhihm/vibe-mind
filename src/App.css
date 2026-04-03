@@ -58,6 +58,26 @@
   padding: 0 32px 20px;
 }
 
+.workspace-banner {
+  margin: 0 32px 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.workspace-banner--error {
+  background: #fef3f2;
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.16);
+}
+
+.workspace-banner--success {
+  background: #ecfdf3;
+  color: #027a48;
+  border-color: rgba(2, 122, 72, 0.16);
+}
+
 .workspace-meta__status {
   display: flex;
   align-items: center;
